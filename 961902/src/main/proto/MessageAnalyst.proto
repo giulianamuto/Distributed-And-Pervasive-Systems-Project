@@ -1,0 +1,12 @@
+syntax = "proto3";
+package messageAnalystproto;
+
+message MessageForAnalyst
+{
+  string msg = 1;
+}
+
+service PushNotifications
+{
+  rpc notifications(MessageForAnalyst) returns (MessageForAnalyst);
+}

@@ -1,0 +1,27 @@
+syntax = "proto3";
+package tokenproto;
+
+
+message TokenMessage
+{
+  double value = 1;
+  int64 timestamp = 2;
+  int32 port = 3;
+  string address = 4;
+}
+
+message tokenRequest
+{
+  repeated TokenMessage token = 1;
+}
+
+message message
+{
+  bool flag = 1;
+}
+
+service SendToken
+{
+  rpc sendToken(tokenRequest) returns (message);
+
+}

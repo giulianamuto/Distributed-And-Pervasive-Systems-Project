@@ -1,0 +1,21 @@
+syntax = "proto3";
+package messageproto;
+
+
+message requestChange
+{
+  int32 port = 1;
+  string address = 2;
+  int32 id = 3;
+}
+
+message responseChange
+{
+  string response = 1;
+}
+
+service MessageChange
+{
+  rpc changeNext(requestChange) returns (responseChange){}
+  rpc changePrevious(requestChange) returns (responseChange){}
+}
