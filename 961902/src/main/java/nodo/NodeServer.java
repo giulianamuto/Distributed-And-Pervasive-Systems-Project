@@ -1,8 +1,6 @@
 package nodo;
 
 import gateway.beans.Node;
-import gateway.list.ListAnalyst;
-import gateway.list.ListNodes;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -36,17 +34,19 @@ public class NodeServer {
     public boolean sendingStats = false; // invio statistiche
     public boolean retrySend = false; // rifai tutto
     public boolean isAlone = false; // l'unico nodo
+    public boolean isUltimateNode = false; // ultimo nodo
+    public boolean hasToken = false; // nodo ha il token
     public boolean isDeleted = false; // processo di eliminazione avviato
-    public boolean isUltimate = false; // ultimo nodo
-    public boolean waitTokenAgain = false;
-    public boolean sendTokenLastTime = false;
-    public boolean hasToken = false;
+    public boolean isEliminating = false;
 
     //lock
     public final Object lockToken = new Object();
-    public final Object lockWaitTokenAgain = new Object();
-    public final Object lockStartTOkenManager = new Object();
-
+    public final Object lockSending = new Object();
+    public final Object lockStartedTokenManager = new Object();
+    public final Object lockDelete = new Object();
+    public final Object lockExit = new Object();
+    public final Object lockWaitToken = new Object();
+    public final Object lockBye = new Object();
 
     public NodeServer(Node nodo) {
         this.node = nodo;
@@ -74,16 +74,16 @@ public class NodeServer {
             nextPort = request.getPort();
             nextId = request.getId();
             System.out.println("Next: " + nextAddress + ":  " + nextPort);
-            isUltimate = false;
             Message.responseChange response = Message.responseChange.newBuilder()
-                    .setResponse(nextPort + nextAddress)
+                    .setResponse(nextPort + nextAddress + nextId)
                     .build();
 
             streamObserver.onNext(response);
 
+            isUltimateNode = false;
             if (nextPort == node.getPort() && previousPort == node.getPort()) {
                 isAlone = true;
-                isUltimate = true;
+                isUltimateNode = true;
             } else isAlone = false;
 
             boolean check = false;
@@ -108,14 +108,15 @@ public class NodeServer {
 
             System.out.println("Previous: " + previousAddress + ":  " + previousPort);
             Message.responseChange response = Message.responseChange.newBuilder()
-                    .setResponse(previousPort + previousAddress)
+                    .setResponse(previousPort + previousAddress + previousId)
                     .build();
 
             streamObserver.onNext(response);
 
+            isUltimateNode = false;
             if (nextPort == node.getPort() && previousPort == node.getPort()) {
                 isAlone = true;
-                isUltimate = true;
+                isUltimateNode = true;
             } else isAlone = false;
 
             boolean check = false;
@@ -152,9 +153,16 @@ public class NodeServer {
 
             Token.message message;
             System.out.println("[Token Received]");
-            if (nextPort == listNode.get(0).getPort() || node.getId() > nextId)
-                isUltimate = true;
-            // System.out.println("ulti: " + isUltimate);
+            if (node.getId() > nextId)
+                isUltimateNode = true;
+            else isUltimateNode = false;
+
+            if(node.getPort() == nextPort && node.getPort() == previousPort) {
+                isAlone = true;
+                isUltimateNode = true;
+            }
+
+            //System.out.println("NEXT ID: " + nextId);
             listStatistics = new ArrayList<>();
 
             for (Token.TokenMessage req : request.getTokenList()) {
@@ -165,14 +173,13 @@ public class NodeServer {
                     .build();
 
             hasToken = true;
-
-            if (waitTokenAgain)
-                sendTokenLastTime = true;
             streamObserver.onNext(message);
             synchronized (lockToken) {
                 lockToken.notify();
             }
-
+            if (isDeleted) {
+                isEliminating = true;
+            }
             streamObserver.onCompleted();
         }
     }

@@ -32,9 +32,6 @@ public class MainNode {
 
     //Lock
     private static Object lockAdd = new Object();
-    private static Object lockDelete = new Object();
-    private static Object lockSending = new Object();
-    private static Object lockWaitDelete = new Object();
 
     private static List<Node> listNodes = new ArrayList<>();
 
@@ -58,7 +55,7 @@ public class MainNode {
         nodeServer = new NodeServer(thisNode);
         nodeServer.listNode = listNodes;
         //CASO LIMITE
-        //Thread.sleep(30000);
+       // Thread.sleep(10000);
         //set address/port successivo e precedente
         setterPointers();
 
@@ -74,72 +71,68 @@ public class MainNode {
 
                 System.out.println("to delete press q");
                 String scelta = in.next();
+
                 if (scelta.equals("q")) {
                     log.info("deletion in progress");
-                    //Sono da solo
+                    NodeDelete deleteNodo = new NodeDelete(nodeServer, client, thisNode);
+                    // se è l'unico nodo all'interno della rete chiude direttamente
                     if (nodeServer.isAlone) {
-                        NodeDelete deleteNodo = new NodeDelete(nodeServer, client, thisNode, lockWaitDelete);
                         deleteNodo.start();
-                        synchronized (nodeServer.lockWaitTokenAgain) {
+                        synchronized (nodeServer.lockExit) {
                             try {
-                                nodeServer.lockWaitTokenAgain.wait();
+                                nodeServer.lockExit.wait();
+                                System.exit(0);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                         }
                     }
-                    //caso in cui il nodo ha il token
-                    if (nodeServer.listStatistics != null) {
-                        nodeServer.waitTokenAgain = true;
-                        // attendere finchè non ricevo il token di nuovo.
-                        synchronized (nodeServer.lockWaitTokenAgain) {
-                            try {
-                                nodeServer.lockWaitTokenAgain.wait();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                    //caso in cui il nodo non ha il token
-                    else {
+                    if (!nodeServer.isAlone) {
                         nodeServer.isDeleted = true;
-                        synchronized (lockDelete) {
+                        synchronized (nodeServer.lockDelete) {
                             try {
-                                lockDelete.wait();
+                                nodeServer.lockDelete.wait();
+                                SendMessageNextAndChangePrevious(nodeServer.previousAddress, nodeServer.previousPort, thisNode.getId());
+                                SendMessaggeToPreviousAndChangeNext(nodeServer.nextAddress, nodeServer.nextPort, thisNode.getId());
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        deleteNodo.start();
+                        synchronized (nodeServer.lockExit) {
+                            try {
+                                nodeServer.lockExit.wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        synchronized (nodeServer.lockWaitToken) {
+                            nodeServer.lockWaitToken.notify();
+                        }
+
+                        synchronized (nodeServer.lockBye){
+                            try {
+                                nodeServer.lockBye.wait();
+                                System.exit(0);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                         }
                     }
-
-                    NodeDelete deleteNodo = new NodeDelete(nodeServer, client, thisNode, lockWaitDelete);
-                    deleteNodo.start();
-
-                    synchronized (lockWaitDelete) {
-                        try {
-                            lockWaitDelete.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    // Invio messaggio al successore dicendogli che questa è la porta/ indirizzo del suo nuovo precedente
-                    SendMessageNextAndChangePrevious(nodeServer.previousAddress, nodeServer.previousPort, thisNode.getId());
-                    // Invio messaggio al precedente dicendogli che questa è la porta/ indirizzo del suo nuovo successore
-                    SendMessaggeToPreviousAndChangeNext(nodeServer.nextAddress, nodeServer.nextPort, thisNode.getId());
-
-                    System.exit(0);
                 }
+
+
             }
         });
 
         threadDelete.start();
 
-        tokenManager = new TokenManager(nodeServer, thisNode, bufferimpl, lockDelete, lockSending);
+        tokenManager = new TokenManager(nodeServer, thisNode, bufferimpl);
         tokenManager.start();
 
-        synchronized (nodeServer.lockStartTOkenManager) {
-            nodeServer.lockStartTOkenManager.wait();
+        synchronized (nodeServer.lockStartedTokenManager) {
+            nodeServer.lockStartedTokenManager.wait();
         }
 
         if (nodeServer.isAlone) {
@@ -150,8 +143,8 @@ public class MainNode {
         }
 
         while (!nodeServer.sendingStats) {
-            synchronized (lockSending) {
-                lockSending.wait();
+            synchronized (nodeServer.lockSending) {
+                nodeServer.lockSending.wait();
                 if (nodeServer.sendingStats)
                     sendStatistics();
             }
@@ -195,40 +188,39 @@ public class MainNode {
     }
 
     private static void setterPointers() {
-        int pos =  nodeServer.listNode.indexOf(thisNode);
+        int pos = nodeServer.listNode.indexOf(thisNode);
         Node previousNode;
         Node nextNode;
         // è l'unico nodo
-        if ( nodeServer.listNode.size() == 1) {
-            previousNode =  nodeServer.listNode.get(0);
-            nextNode =  nodeServer.listNode.get(0);
+        if (nodeServer.listNode.size() == 1) {
+            previousNode = nodeServer.listNode.get(0);
+            nextNode = nodeServer.listNode.get(0);
             nodeServer.isAlone = true;
         } else {
             if (pos == 0)
-                previousNode =  nodeServer.listNode.get( nodeServer.listNode.size() - 1);
+                previousNode = nodeServer.listNode.get(nodeServer.listNode.size() - 1);
             else
-                previousNode =  nodeServer.listNode.get(pos - 1);
-            if (pos ==  nodeServer.listNode.size() - 1)
-                nextNode =  nodeServer.listNode.get(0);
+                previousNode = nodeServer.listNode.get(pos - 1);
+            if (pos == nodeServer.listNode.size() - 1)
+                nextNode = nodeServer.listNode.get(0);
             else
-                nextNode =  nodeServer.listNode.get(pos + 1);
+                nextNode = nodeServer.listNode.get(pos + 1);
         }
 
         nodeServer.previousAddress = previousNode.getIpaddress();
         nodeServer.previousPort = previousNode.getPort();
+        nodeServer.previousId = previousNode.getId();
         nodeServer.nextPort = nextNode.getPort();
         nodeServer.nextAddress = nextNode.getIpaddress();
+        nodeServer.nextId = nextNode.getId();
 
         System.out.println("Next: " + nodeServer.nextPort);
         System.out.println("Previous: " + nodeServer.previousPort);
 
-        if ( nodeServer.listNode.size() > 1) {
+        if (nodeServer.listNode.size() > 1) {
             SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
             SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
         }
-
-        if (nodeServer.nextPort ==  nodeServer.listNode.get(0).getPort() || thisNode.getId() > nodeServer.nextId)
-            nodeServer.isUltimate = true;
     }
 
     public static void SendMessaggeToPreviousAndChangeNext(String addressToBeSet, int portToBeSet, int idToBeSet) {
@@ -247,22 +239,24 @@ public class MainNode {
             channel.shutdown();
         } catch (StatusRuntimeException e) {
             int posP = 0;
-            for (Node n :  nodeServer.listNode) {
+            for (Node n : nodeServer.listNode) {
                 if (n.getPort() == nodeServer.previousPort) {
-                    posP =  nodeServer.listNode.indexOf(n);
+                    posP = nodeServer.listNode.indexOf(n);
                     break;
                 }
             }
             try {
-                if ( nodeServer.listNode.get(posP + 1) != null) {
-                    nodeServer.previousPort =  nodeServer.listNode.get(posP - 1).getPort();
-                    nodeServer.previousAddress =  nodeServer.listNode.get(posP - 1).getIpaddress();
+                if (nodeServer.listNode.get(posP - 1) != null) {
+                    nodeServer.previousPort = nodeServer.listNode.get(posP - 1).getPort();
+                    nodeServer.previousAddress = nodeServer.listNode.get(posP - 1).getIpaddress();
+                    nodeServer.previousId = nodeServer.listNode.get(posP - 1).getId();
                     SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
                 }
             } catch (IndexOutOfBoundsException exe) {
-                Node nodeUlt =  nodeServer.listNode.get( nodeServer.listNode.size() - 1);
+                Node nodeUlt = nodeServer.listNode.get(nodeServer.listNode.size() - 1);
                 nodeServer.previousPort = nodeUlt.getPort();
                 nodeServer.previousAddress = nodeUlt.getIpaddress();
+                nodeServer.previousId = nodeUlt.getId();
                 SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
             }
         }
@@ -284,55 +278,25 @@ public class MainNode {
             channel.shutdown();
         } catch (StatusRuntimeException e) {
             int posN = 0;
-            for (Node n :  nodeServer.listNode) {
+            for (Node n : nodeServer.listNode) {
                 if (n.getPort() == nodeServer.nextPort)
-                    posN =  nodeServer.listNode.indexOf(n);
+                    posN = nodeServer.listNode.indexOf(n);
             }
             try {
-                if ( nodeServer.listNode.get(posN + 1) != null) {
-                    nodeServer.previousPort =  nodeServer.listNode.get(posN + 1).getPort();
-                    nodeServer.previousAddress =  nodeServer.listNode.get(posN + 1).getIpaddress();
+                if (nodeServer.listNode.get(posN + 1) != null) {
+                    nodeServer.previousPort = nodeServer.listNode.get(posN + 1).getPort();
+                    nodeServer.previousAddress = nodeServer.listNode.get(posN + 1).getIpaddress();
+                    nodeServer.previousId = nodeServer.listNode.get(posN + 1).getId();
                     SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
                 }
             } catch (IndexOutOfBoundsException exe) {
-                Node nodeFirst =  nodeServer.listNode.get(0);
+                Node nodeFirst = nodeServer.listNode.get(0);
                 nodeServer.nextPort = nodeFirst.getPort();
                 nodeServer.nextAddress = nodeFirst.getIpaddress();
+                nodeServer.nextId = nodeFirst.getId();
                 SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
             }
         }
     }
 }
 
-/*
-     public static void SuccessorOfPrevious(String addressToBeSet, int portToBeSet) {
-        final ManagedChannel channel = ManagedChannelBuilder.forTarget(nodeServer.previousAddress + ":" + nodeServer.previousPort).usePlaintext().build();
-        MessageChangeGrpc.MessageChangeBlockingStub stub = MessageChangeGrpc.newBlockingStub(channel);
-
-        Message.requestChange requestChange = Message.requestChange.newBuilder()
-                .setAddress(addressToBeSet)
-                .setPort(portToBeSet)
-                .build();
-
-        stub.changeNext(requestChange);
-        System.out.println("[CLIENT/Change next] " + nodeServer.previousAddress + ":" + nodeServer.previousPort);
-
-        channel.shutdown();
-    }
-
-    public static void PreviousOfSuccessor(String addressToBeSet, int portToBeSet) {
-        final ManagedChannel channel = ManagedChannelBuilder.forTarget(nodeServer.nextAddress + ":" + nodeServer.nextPort).usePlaintext().build();
-        MessageChangeGrpc.MessageChangeBlockingStub stub = MessageChangeGrpc.newBlockingStub(channel);
-
-        Message.requestChange requestChange = Message.requestChange.newBuilder()
-                .setAddress(addressToBeSet)
-                .setPort(portToBeSet)
-                .build();
-
-        stub.changePrevious(requestChange);
-        System.out.println("[CLIENT/Change previous] " + nodeServer.nextAddress + ":" + nodeServer.nextPort);
-
-        channel.shutdown();
-
-    }
- */

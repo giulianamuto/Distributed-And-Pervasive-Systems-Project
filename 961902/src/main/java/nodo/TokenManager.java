@@ -20,19 +20,14 @@ public class TokenManager extends Thread {
     private BufferImpl bufferimpl;
     private List<Token.TokenMessage> listStatistics;
 
-    private Object lockDelete;
-    private Object lockSendings;
-
     public Object lock = new Object();
 
     private static final Logger log = Logger.getLogger("global");
 
-    public TokenManager(NodeServer nodeServer, Node node, BufferImpl bufferimpl, Object lockDelete, Object lockSendings) {
+    public TokenManager(NodeServer nodeServer, Node node, BufferImpl bufferimpl) {
         this.nodeServer = nodeServer;
         this.node = node;
-        this.lockDelete = lockDelete;
         this.bufferimpl = bufferimpl;
-        this.lockSendings = lockSendings;
     }
 
     /*
@@ -51,8 +46,8 @@ public class TokenManager extends Thread {
     @Override
     public void run() {
 
-        synchronized (nodeServer.lockStartTOkenManager) {
-            nodeServer.lockStartTOkenManager.notify();
+        synchronized (nodeServer.lockStartedTokenManager) {
+            nodeServer.lockStartedTokenManager.notify();
         }
 
         if (nodeServer.hasToken)
@@ -62,8 +57,8 @@ public class TokenManager extends Thread {
             synchronized (nodeServer.lockToken) {
                 try {
                     nodeServer.lockToken.wait();
-                    if (nodeServer.listStatistics != null) {
-                        Thread.sleep(5000);
+                    if (nodeServer.listStatistics != null || nodeServer.hasToken) {
+                        Thread.sleep(800);
                         tokenHendeler();
                     }
                 } catch (InterruptedException e) {
@@ -79,6 +74,7 @@ public class TokenManager extends Thread {
             long time;
 
             listStatistics = nodeServer.listStatistics;
+
             Measurement measurement = bufferimpl.measurementDTOQueue.poll();
 
             if (measurement == null) {
@@ -91,49 +87,53 @@ public class TokenManager extends Thread {
 
             insertStatistics(time, value);
 
-            boolean sendServer = false;
-            if (nodeServer.isUltimate) {
-                sendServer = toSendServer();
+            if (nodeServer.isUltimateNode) {
+                if (toSendServer()) {
+                    // log.info("Invio statistiche");
+                    nodeServer.sendingStats = true;
+                    synchronized (nodeServer.lockSending) {
+                        nodeServer.lockSending.notify();
+                    }
+                    synchronized (lock) {
+                        try {
+                            lock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
             }
 
-            if (sendServer) {
-                // log.info("Invio statistiche");
-                nodeServer.sendingStats = true;
-                synchronized (lockSendings) {
-                    lockSendings.notify();
+            if (nodeServer.isEliminating) {
+                if (!listStatistics.isEmpty()) {
+                    for (Token.TokenMessage tok : listStatistics) {
+                        if (tok.getPort() == node.getPort()) {
+                            if (tok.getValue() == 0) {
+                                listStatistics.remove(tok);
+                                break;
+                            }
+                        }
+                    }
                 }
-                synchronized (lock) {
+                synchronized (nodeServer.lockDelete) {
+                    nodeServer.lockDelete.notify();
+                }
+                synchronized (nodeServer.lockWaitToken) {
                     try {
-                        lock.wait();
+                        nodeServer.lockWaitToken.wait();
+                        sendToken(nodeServer.nextPort, nodeServer.nextAddress);
+                        break;
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
             }
-
-            if (nodeServer.isDeleted) {
-                checkStatistics();
-                sendToken(nodeServer.nextPort, nodeServer.nextAddress);
-                synchronized (lockDelete) {
-                    lockDelete.notify();
-                    break;
-                }
-            }
-
-            if (nodeServer.sendTokenLastTime) {
-                checkStatistics();
-                sendToken(nodeServer.nextPort, nodeServer.nextAddress);
-                synchronized (nodeServer.lockWaitTokenAgain) {
-                    nodeServer.lockWaitTokenAgain.notify();
-                    break;
-                }
-            }
-
             // se sono il primo ripeti
             if (nodeServer.isAlone)
                 nodeServer.retrySend = true;
             else
                 sendToken(nodeServer.nextPort, nodeServer.nextAddress);
+
         } while (nodeServer.retrySend);
     }
 
@@ -167,6 +167,13 @@ public class TokenManager extends Thread {
                     nodeServer.hasToken = false;
                 }
             } catch (NullPointerException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (nodeServer.isEliminating) {
+            synchronized (nodeServer.lockBye) {
+                nodeServer.lockBye.notify();
             }
         }
     }
@@ -181,9 +188,10 @@ public class TokenManager extends Thread {
     */
     private void insertStatistics(long time, double value) {
         boolean isPresent = false;
+        Token.TokenMessage tokenMessage = null;
 
         if (listStatistics.isEmpty()) {
-            Token.TokenMessage tokenMessage = Token.TokenMessage.newBuilder()
+            tokenMessage = Token.TokenMessage.newBuilder()
                     .setValue(value)
                     .setTimestamp(time)
                     .setPort(node.getPort())
@@ -195,7 +203,7 @@ public class TokenManager extends Thread {
                 if (e.getPort() == node.getPort()) {
                     //log.info("trovato, metto statistiche");
                     listStatistics.remove(e);
-                    Token.TokenMessage tokenMessage = Token.TokenMessage.newBuilder()
+                    tokenMessage = Token.TokenMessage.newBuilder()
                             .setValue(value)
                             .setTimestamp(time)
                             .setPort(node.getPort())
@@ -207,7 +215,7 @@ public class TokenManager extends Thread {
                 }
             }
             if (!isPresent) {
-                Token.TokenMessage tokenMessage = Token.TokenMessage.newBuilder()
+                tokenMessage = Token.TokenMessage.newBuilder()
                         .setValue(value)
                         .setTimestamp(time)
                         .setPort(node.getPort())
@@ -216,6 +224,7 @@ public class TokenManager extends Thread {
                 listStatistics.add(tokenMessage);
             }
         }
+     //   System.out.println(tokenMessage.toString());
     }
 
     /*
@@ -233,18 +242,5 @@ public class TokenManager extends Thread {
         return check;
     }
 
-    /*
-       Se la sua statistica è vuota
-            true: la elimino
-            false: la lascio
-     */
-    private void checkStatistics() {
-        for (Token.TokenMessage e : listStatistics) {
-            if (e.getPort() == node.getPort()) {
-                if (e.getValue() == 0) {
-                    listStatistics.remove(e);
-                }
-            }
-        }
-    }
+
 }
