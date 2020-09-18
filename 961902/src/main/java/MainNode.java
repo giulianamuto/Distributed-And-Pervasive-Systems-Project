@@ -55,7 +55,7 @@ public class MainNode {
         nodeServer = new NodeServer(thisNode);
         nodeServer.listNode = listNodes;
         //CASO LIMITE
-       // Thread.sleep(10000);
+        //Thread.sleep(10000);
         //set address/port successivo e precedente
         setterPointers();
 
@@ -92,6 +92,7 @@ public class MainNode {
                         synchronized (nodeServer.lockDelete) {
                             try {
                                 nodeServer.lockDelete.wait();
+                                //Thread.sleep(10000);
                                 SendMessageNextAndChangePrevious(nodeServer.previousAddress, nodeServer.previousPort, thisNode.getId());
                                 SendMessaggeToPreviousAndChangeNext(nodeServer.nextAddress, nodeServer.nextPort, thisNode.getId());
                             } catch (InterruptedException e) {

@@ -7,23 +7,13 @@ public class Analyst {
 
     private int port;
     private String ipAddress;
-    private int id;
 
     public Analyst() {
     }
 
-    public Analyst(int port, String ipAddress, int id) {
+    public Analyst(int port, String ipAddress) {
         this.port = port;
         this.ipAddress = ipAddress;
-        this.id = id;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
     }
 
     public int getPort() {
@@ -47,7 +37,6 @@ public class Analyst {
         return "Analyst{" +
                 "port=" + port +
                 ", ipAddress='" + ipAddress + '\'' +
-                ", id=" + id +
                 '}';
     }
 }

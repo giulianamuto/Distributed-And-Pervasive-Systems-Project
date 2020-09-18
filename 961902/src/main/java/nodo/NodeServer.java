@@ -162,7 +162,8 @@ public class NodeServer {
                 isUltimateNode = true;
             }
 
-            //System.out.println("NEXT ID: " + nextId);
+           // System.out.println("NEXT ID: " + nextId);
+           // System.out.println("Ultimate" + isUltimateNode);
             listStatistics = new ArrayList<>();
 
             for (Token.TokenMessage req : request.getTokenList()) {

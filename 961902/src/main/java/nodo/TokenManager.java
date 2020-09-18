@@ -50,8 +50,9 @@ public class TokenManager extends Thread {
             nodeServer.lockStartedTokenManager.notify();
         }
 
-        if (nodeServer.hasToken)
+        if (nodeServer.hasToken) {
             tokenHendeler();
+        }
 
         while (nodeServer.listStatistics == null) {
             synchronized (nodeServer.lockToken) {
@@ -70,6 +71,8 @@ public class TokenManager extends Thread {
 
     private void tokenHendeler() {
         do {
+            if (nodeServer.isAlone)
+                nodeServer.isUltimateNode = true;
             double value;
             long time;
 
@@ -87,6 +90,7 @@ public class TokenManager extends Thread {
 
             insertStatistics(time, value);
 
+            //  log.info("m" + measurement);
             if (nodeServer.isUltimateNode) {
                 if (toSendServer()) {
                     // log.info("Invio statistiche");
@@ -224,7 +228,7 @@ public class TokenManager extends Thread {
                 listStatistics.add(tokenMessage);
             }
         }
-     //   System.out.println(tokenMessage.toString());
+        //   System.out.println(tokenMessage.toString());
     }
 
     /*

@@ -40,10 +40,9 @@ public class ListAnalyst {
         String[] all = analyst.split(",");
         int port = Integer.parseInt(all[0]);
         String ip = all[1];
-        int id = Integer.parseInt(all[2]);
-        Analyst an = new Analyst(port, ip, id);
+        Analyst an = new Analyst(port, ip);
 
-        if (checkID(id) || checkPort(port)) {
+        if ( checkPort(port)) {
             return null;
         } else {
             list.add(an);
@@ -52,13 +51,14 @@ public class ListAnalyst {
     }
 
     //DELETE
-    public synchronized void removeAnalyst(String idToDelete) {
-        int id = Integer.parseInt(idToDelete);
+    public synchronized void removeAnalyst(String portToDelete) {
+        int port = Integer.parseInt(portToDelete);
         List<Analyst> copy = getAnalystList();
 
         for (Analyst analy : copy) {
-            if (analy.getId() == id) {
+            if (analy.getPort() == port) {
                 list.remove(analy);
+                break;
             }
         }
     }
@@ -71,11 +71,13 @@ public class ListAnalyst {
         for (Node nod : copyNode) {
             if (nod.getPort() == portToVerify) {
                 exist = true;
+                break;
             }
             if (!exist) {
                 for (Analyst an : copyAnalyst) {
                     if (an.getPort() == portToVerify) {
                         exist = true;
+                        break;
                     }
                 }
             }
@@ -83,25 +85,6 @@ public class ListAnalyst {
         return exist;
     }
 
-    private boolean checkID(int idToVerify) {
-        boolean exist = false;
-        List<Node> copyNode = ListNodes.getInstance().getNodesList();
-        List<Analyst> copyAnalyst = getAnalystList();
-
-        for (Node nod : copyNode) {
-            if (nod.getPort() == idToVerify) {
-                exist = true;
-            }
-            if (!exist) {
-                for (Analyst an : copyAnalyst) {
-                    if (an.getPort() == idToVerify) {
-                        exist = true;
-                    }
-                }
-            }
-        }
-        return exist;
-    }
 
 
 }

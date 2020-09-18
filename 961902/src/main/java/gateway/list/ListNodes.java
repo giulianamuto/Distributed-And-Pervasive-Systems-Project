@@ -72,11 +72,13 @@ public class ListNodes {
         for (Node nod : copyNode) {
             if (nod.getPort() == portToVerify) {
                 exist = true;
+                break;
             }
             if (!exist) {
                 for (Analyst an : copyAnalyst) {
                     if (an.getPort() == portToVerify) {
                         exist = true;
+                        break;
                     }
                 }
             }
@@ -87,18 +89,11 @@ public class ListNodes {
     private boolean checkID(int idToVerify) {
         boolean exist = false;
         List<Node> copyNode = getNodesList();
-        List<Analyst> copyAnalyst = ListAnalyst.getInstance().getAnalystList();
 
         for (Node nod : copyNode) {
             if (nod.getPort() == idToVerify) {
                 exist = true;
-            }
-            if (!exist) {
-                for (Analyst an : copyAnalyst) {
-                    if (an.getPort() == idToVerify) {
-                        exist = true;
-                    }
-                }
+                break;
             }
         }
         return exist;

@@ -18,7 +18,6 @@ public class MainAnalyst {
     private static final String URI_POST_ANALYST = "http://localhost:6060/gatewayAnalyst/addAnalyst";
     private static final String URI_DELETE_ANALYST = "http://localhost:6060/gatewayAnalyst/deleteAnalyst";
 
-    private static int id;
     private static int port;
     private static String ipAddress;
     private static Analyst analyst;
@@ -104,7 +103,7 @@ public class MainAnalyst {
     }
 
     private static void removed() {
-        String sid = "" + id;
+        String sid = "" + port;
         HttpRequest requestDELETE = HttpRequest.newBuilder()
                 .method("DELETE", HttpRequest.BodyPublishers.ofString(sid))
                 .uri(URI.create(URI_DELETE_ANALYST))
@@ -139,13 +138,11 @@ public class MainAnalyst {
         boolean isPresent = true;
 
         while (isPresent) {
-            System.out.println("ID: ");
-            id = in.nextInt();
             System.out.println("Port: ");
             port = in.nextInt();
 
 
-            String all = "" + port + "," + ipAddress + "," + id;
+            String all = "" + port + "," + ipAddress;
             //System.out.println(all);
             HttpRequest requestPOST = HttpRequest.newBuilder()
                     .POST(HttpRequest.BodyPublishers.ofString(all))
@@ -171,7 +168,7 @@ public class MainAnalyst {
 
                 isPresent = false;
                 System.out.println(responsePOST.body());
-                analyst = new Analyst(port, ipAddress, id);
+                analyst = new Analyst(port, ipAddress);
             }
 
         }
