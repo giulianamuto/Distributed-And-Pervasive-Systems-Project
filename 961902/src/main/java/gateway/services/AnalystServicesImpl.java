@@ -58,7 +58,6 @@ public class AnalystServicesImpl implements AnalystServices {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addedAnalyst(String analyst) {
         Analyst n = ListAnalyst.getInstance().createAnalyst(analyst);
-
         if (n != null) {
             return getAnalystList();
         } else {

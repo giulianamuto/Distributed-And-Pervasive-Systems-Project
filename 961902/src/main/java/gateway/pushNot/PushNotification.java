@@ -1,4 +1,4 @@
-package analyst;
+package gateway.pushNot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gateway.beans.Analyst;
@@ -18,7 +18,6 @@ import java.util.List;
 
 public class PushNotification extends Thread {
 
-    private static final String URI_GET_ANALYSTS = "http://localhost:6060/gatewayAnalyst/getAnalysts";
     private List<Analyst> listAnalysts;
     private String message;
 
@@ -27,38 +26,8 @@ public class PushNotification extends Thread {
         this.message = message;
     }
 
-
     @Override
     public void run() {
-        HttpClient client = HttpClient.newHttpClient();
-        listAnalysts = new ArrayList<>();
-        HttpRequest requestPOST = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(URI_GET_ANALYSTS))
-                .setHeader("Accept", "application/json")
-                .build();
-        HttpResponse<String> responsePOST = null;
-        try {
-            responsePOST = client.send(requestPOST, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (responsePOST.statusCode() != 200) {
-            System.out.println("error: " + responsePOST.statusCode());
-        } else {
-
-            // System.out.println(responsePOST.body());
-            String json = responsePOST.body();
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                listAnalysts.addAll(Arrays.asList(mapper.readValue(json, Analyst[].class)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
         for (Analyst a : listAnalysts) {
             final ManagedChannel channel = ManagedChannelBuilder.forTarget(a.getIpAddress() + ":" + a.getPort()).usePlaintext().build();
             PushNotificationsGrpc.PushNotificationsBlockingStub stub = PushNotificationsGrpc.newBlockingStub(channel);

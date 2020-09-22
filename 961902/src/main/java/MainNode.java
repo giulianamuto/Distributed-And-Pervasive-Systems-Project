@@ -54,7 +54,6 @@ public class MainNode {
         thisNode = addNodo.nodo;
         nodeServer = new NodeServer(thisNode);
         nodeServer.listNode = listNodes;
-        //CASO LIMITE
         //Thread.sleep(10000);
         //set address/port successivo e precedente
         setterPointers();
@@ -92,9 +91,6 @@ public class MainNode {
                         synchronized (nodeServer.lockDelete) {
                             try {
                                 nodeServer.lockDelete.wait();
-                                //Thread.sleep(10000);
-                                SendMessageNextAndChangePrevious(nodeServer.previousAddress, nodeServer.previousPort, thisNode.getId());
-                                SendMessaggeToPreviousAndChangeNext(nodeServer.nextAddress, nodeServer.nextPort, thisNode.getId());
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -103,6 +99,9 @@ public class MainNode {
                         synchronized (nodeServer.lockExit) {
                             try {
                                 nodeServer.lockExit.wait();
+                                //Thread.sleep(10000);
+                                SendMessageToNextAndChangePrevious(nodeServer.previousAddress, nodeServer.previousPort, thisNode.getId());
+                                SendMessageToPreviousAndChangeNext(nodeServer.nextAddress, nodeServer.nextPort, thisNode.getId());
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -219,12 +218,12 @@ public class MainNode {
         System.out.println("Previous: " + nodeServer.previousPort);
 
         if (nodeServer.listNode.size() > 1) {
-            SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
-            SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+            SendMessageToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+            SendMessageToNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
         }
     }
 
-    public static void SendMessaggeToPreviousAndChangeNext(String addressToBeSet, int portToBeSet, int idToBeSet) {
+    public static void SendMessageToPreviousAndChangeNext(String addressToBeSet, int portToBeSet, int idToBeSet) {
         final ManagedChannel channel = ManagedChannelBuilder.forTarget(nodeServer.previousAddress + ":" + nodeServer.previousPort).usePlaintext().build();
         MessageChangeGrpc.MessageChangeBlockingStub stub = MessageChangeGrpc.newBlockingStub(channel);
 
@@ -251,20 +250,20 @@ public class MainNode {
                     nodeServer.previousPort = nodeServer.listNode.get(posP - 1).getPort();
                     nodeServer.previousAddress = nodeServer.listNode.get(posP - 1).getIpaddress();
                     nodeServer.previousId = nodeServer.listNode.get(posP - 1).getId();
-                    SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+                    SendMessageToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
                 }
             } catch (IndexOutOfBoundsException exe) {
                 Node nodeUlt = nodeServer.listNode.get(nodeServer.listNode.size() - 1);
                 nodeServer.previousPort = nodeUlt.getPort();
                 nodeServer.previousAddress = nodeUlt.getIpaddress();
                 nodeServer.previousId = nodeUlt.getId();
-                SendMessaggeToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+                SendMessageToPreviousAndChangeNext(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
             }
         }
     }
 
 
-    public static void SendMessageNextAndChangePrevious(String addressToBeSet, int portToBeSet, int idToBeSet) {
+    public static void SendMessageToNextAndChangePrevious(String addressToBeSet, int portToBeSet, int idToBeSet) {
         final ManagedChannel channel = ManagedChannelBuilder.forTarget(nodeServer.nextAddress + ":" + nodeServer.nextPort).usePlaintext().build();
         MessageChangeGrpc.MessageChangeBlockingStub stub = MessageChangeGrpc.newBlockingStub(channel);
         Message.requestChange requestChange = Message.requestChange.newBuilder()
@@ -288,14 +287,14 @@ public class MainNode {
                     nodeServer.previousPort = nodeServer.listNode.get(posN + 1).getPort();
                     nodeServer.previousAddress = nodeServer.listNode.get(posN + 1).getIpaddress();
                     nodeServer.previousId = nodeServer.listNode.get(posN + 1).getId();
-                    SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+                    SendMessageToNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
                 }
             } catch (IndexOutOfBoundsException exe) {
                 Node nodeFirst = nodeServer.listNode.get(0);
                 nodeServer.nextPort = nodeFirst.getPort();
                 nodeServer.nextAddress = nodeFirst.getIpaddress();
                 nodeServer.nextId = nodeFirst.getId();
-                SendMessageNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
+                SendMessageToNextAndChangePrevious(thisNode.getIpaddress(), thisNode.getPort(), thisNode.getId());
             }
         }
     }

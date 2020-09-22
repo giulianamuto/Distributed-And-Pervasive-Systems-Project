@@ -1,6 +1,6 @@
 package gateway.services;
 
-import analyst.PushNotification;
+import gateway.pushNot.PushNotification;
 import gateway.beans.Node;
 import gateway.list.ListAnalyst;
 import gateway.list.ListNodes;
