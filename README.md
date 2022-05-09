@@ -1,1 +1,3 @@
-DistributedandpervasivesystemsProject-
+Project done for the distributed and pervasive systems exam. The purpose is to have a system for monitoring distributed monitoring system of the level of air pollution in a neighborhood of a smart city. The project, entirely developed in java, is composed by a gateway server and by nodes that send the send the statistics. The nodes, synchronized via token ring, communicate with each other with grpc and interface with the Gateway through REST calls. It has been implemented the algorithm of
+sliding windows algorithm has been implemented to periodically produce Moreover, through queries, the analyst clients can receive all the data related to the can receive all the data related to pollution and are notified, through push notified, through push notifications, of any changes. The whole project was aimed at managing all the
+synchronization issues.
